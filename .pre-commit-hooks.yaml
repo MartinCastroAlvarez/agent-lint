@@ -1,0 +1,11 @@
+# Consumed by pre-commit (https://pre-commit.com) when another project lists
+# this repository under `repos:`. See integrations/pre-commit/README.md.
+- id: agent-lint
+  name: agent-lint
+  description: Ratcheting lint gate - fail on new findings and on suppressions, skipped tests or weakened linter config.
+  entry: agent-lint check
+  language: python
+  pass_filenames: false
+  always_run: true
+  require_serial: true
+  stages: [pre-commit, pre-push]

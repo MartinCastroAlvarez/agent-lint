@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#3ddc97"/>
+    </marker>
+  </defs>
+  <style>
+    .title { font: 700 60px 'Helvetica Neue', Helvetica, Arial, sans-serif; fill: #f5f7ff; }
+    .pitch { font: 400 25px 'Helvetica Neue', Helvetica, Arial, sans-serif; fill: #aab3cc; }
+    .box   { fill: #131a33; stroke: #2a3558; stroke-width: 2; }
+    .acc   { fill: #0f2a22; stroke: #3ddc97; stroke-width: 2.5; }
+    .lbl   { font: 600 21px 'Helvetica Neue', Helvetica, Arial, sans-serif; fill: #f5f7ff; }
+    .sub   { font: 400 15px 'SFMono-Regular', Menlo, Consolas, monospace; fill: #8f9bbb; }
+    .code  { font: 600 15px 'SFMono-Regular', Menlo, Consolas, monospace; fill: #f5f7ff; }
+    .cut   { stroke: #8f9bbb; stroke-width: 2; }
+    .line  { stroke: #3ddc97; stroke-width: 2.5; fill: none; }
+    .bar   { fill: #3ddc97; }
+    .bar2  { fill: #2a3558; }
+  </style>
+
+  <rect width="1280" height="640" fill="#0b1020"/>
+
+  <text x="80" y="118" class="title">agent-lint</text>
+  <text x="80" y="164" class="pitch">A ratcheting lint gate for AI-written code: new findings fail, the baseline only tightens.</text>
+  <rect x="80" y="188" width="120" height="4" rx="2" fill="#3ddc97"/>
+
+  <!-- left: the agent's change -->
+  <rect x="80" y="250" width="230" height="300" rx="16" class="box"/>
+  <text x="104" y="288" class="lbl">agent's diff</text>
+  <text x="104" y="330" class="code"># noqa</text>
+  <line x1="100" y1="325" x2="290" y2="325" class="cut"/>
+  <text x="104" y="372" class="code">@pytest.mark.skip</text>
+  <line x1="100" y1="367" x2="290" y2="367" class="cut"/>
+  <text x="104" y="414" class="code">ignore = ["E501"]</text>
+  <line x1="100" y1="409" x2="290" y2="409" class="cut"/>
+  <text x="104" y="456" class="code">+ baseline entry</text>
+  <line x1="100" y1="451" x2="290" y2="451" class="cut"/>
+  <text x="104" y="510" class="sub">guards vs. git base</text>
+
+  <path d="M310 400 L 366 400" class="line" marker-end="url(#arrow)"/>
+
+  <!-- middle: linters -> fingerprint -->
+  <rect x="370" y="250" width="250" height="300" rx="16" class="box"/>
+  <text x="394" y="288" class="lbl">your linters</text>
+  <text x="394" y="324" class="sub">ruff · mypy · bandit</text>
+  <text x="394" y="348" class="sub">eslint · semgrep</text>
+  <text x="394" y="372" class="sub">shellcheck</text>
+  <rect x="394" y="400" width="202" height="116" rx="10" class="acc"/>
+  <text x="412" y="432" class="lbl">fingerprint</text>
+  <text x="412" y="460" class="sub">rule + file +</text>
+  <text x="412" y="482" class="sub">normalised line</text>
+  <text x="412" y="504" class="sub">(not line no.)</text>
+
+  <path d="M620 400 L 676 400" class="line" marker-end="url(#arrow)"/>
+
+  <!-- ratchet: baseline shrinking -->
+  <rect x="680" y="250" width="270" height="300" rx="16" class="box"/>
+  <text x="704" y="288" class="lbl">baseline ratchet</text>
+  <rect x="704" y="318" width="222" height="26" rx="5" class="bar2"/>
+  <rect x="704" y="318" width="222" height="26" rx="5" class="bar"/>
+  <text x="704" y="364" class="sub">init      214 findings</text>
+  <rect x="704" y="384" width="222" height="26" rx="5" class="bar2"/>
+  <rect x="704" y="384" width="150" height="26" rx="5" class="bar"/>
+  <text x="704" y="430" class="sub">ratchet   146</text>
+  <rect x="704" y="450" width="222" height="26" rx="5" class="bar2"/>
+  <rect x="704" y="450" width="62" height="26" rx="5" class="bar"/>
+  <text x="704" y="496" class="sub">ratchet    61</text>
+  <text x="704" y="530" class="sub">only ever shrinks</text>
+
+  <path d="M950 400 L 1006 400" class="line" marker-end="url(#arrow)"/>
+
+  <!-- right: integrations -->
+  <rect x="1010" y="250" width="190" height="300" rx="16" class="acc"/>
+  <text x="1034" y="288" class="lbl">gate</text>
+  <text x="1034" y="330" class="code">exit 1 on new</text>
+  <text x="1034" y="378" class="sub">Claude Code</text>
+  <text x="1034" y="400" class="sub">  hooks</text>
+  <text x="1034" y="436" class="sub">pre-commit</text>
+  <text x="1034" y="472" class="sub">GitHub Action</text>
+  <text x="1034" y="508" class="sub">SARIF</text>
+
+  <text x="80" y="600" class="sub">No runtime dependencies · runs 100% locally · github.com/MartinCastroAlvarez/agent-lint</text>
+</svg>

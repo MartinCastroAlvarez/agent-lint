@@ -1,0 +1,132 @@
+name: agent-lint
+description: Ratcheting lint gate for AI-written code - new findings fail, the baseline only tightens, cheating is caught.
+author: Martín Castro Álvarez
+branding:
+  icon: shield
+  color: orange
+
+# Run this AFTER installing your linters (ruff, mypy, eslint, ...): agent-lint
+# runs whatever is on PATH. Check out with `fetch-depth: 0` so the base ref exists.
+inputs:
+  base:
+    description: Git ref to compare against. Default - the PR base sha, or the previous commit on push.
+    required: false
+    default: ""
+  args:
+    description: Extra arguments for `agent-lint check` (e.g. "--tool ruff --tool mypy").
+    required: false
+    default: ""
+  install:
+    description: Install agent-lint from this action's source into the current Python ("true"/"false").
+    required: false
+    default: "true"
+  comment:
+    description: Post (or update) a summary comment on the pull request ("true"/"false"). Needs `pull-requests - write`.
+    required: false
+    default: "true"
+  sarif:
+    description: Path of the SARIF file to write (upload it with github/codeql-action/upload-sarif).
+    required: false
+    default: agent-lint.sarif
+  upload-sarif:
+    description: Upload the SARIF to GitHub code scanning ("true"/"false"). Needs `security-events - write`.
+    required: false
+    default: "false"
+  github-token:
+    description: Token used to comment on the pull request.
+    required: false
+    default: ${{ github.token }}
+
+outputs:
+  exit-code:
+    description: 0 passed, 1 gate failed, 2 usage or configuration error.
+    value: ${{ steps.check.outputs.exit-code }}
+  sarif:
+    description: Path of the SARIF file.
+    value: ${{ inputs.sarif }}
+
+runs:
+  using: composite
+  steps:
+    - name: Install agent-lint
+      if: inputs.install == 'true'
+      shell: bash
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+      run: python -m pip install --quiet "$ACTION_PATH"
+
+    - name: Run agent-lint
+      id: check
+      shell: bash
+      # Every input reaches the script through env, never through ${{ }} in the
+      # script body, so no input can inject shell code.
+      env:
+        INPUT_BASE: ${{ inputs.base }}
+        INPUT_ARGS: ${{ inputs.args }}
+        INPUT_SARIF: ${{ inputs.sarif }}
+        EVENT_NAME: ${{ github.event_name }}
+        PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        PUSH_BEFORE: ${{ github.event.before }}
+      run: |
+        set -uo pipefail
+        base="$INPUT_BASE"
+        if [ -z "$base" ]; then
+          if [ "$EVENT_NAME" = "pull_request" ] || [ "$EVENT_NAME" = "pull_request_target" ]; then
+            base="$PR_BASE_SHA"
+          elif [ -n "$PUSH_BEFORE" ] && [ "$PUSH_BEFORE" != "0000000000000000000000000000000000000000" ]; then
+            base="$PUSH_BEFORE"
+          else
+            base="HEAD~1"
+          fi
+        fi
+        if ! git cat-file -e "${base}^{commit}" 2>/dev/null; then
+          git fetch --no-tags --quiet --depth=1 origin "$base" 2>/dev/null || true
+        fi
+        if ! git cat-file -e "${base}^{commit}" 2>/dev/null; then
+          echo "::warning::agent-lint: base $base not available (use fetch-depth: 0); comparing against HEAD"
+          base="HEAD"
+        fi
+        read -r -a extra <<< "$INPUT_ARGS"
+        md="$RUNNER_TEMP/agent-lint.md"
+        code=0
+        agent-lint check --base "$base" --sarif "$INPUT_SARIF" --markdown "$md" "${extra[@]}" || code=$?
+        if [ -f "$md" ]; then
+          cat "$md" >> "$GITHUB_STEP_SUMMARY"
+        fi
+        echo "exit-code=$code" >> "$GITHUB_OUTPUT"
+        echo "markdown=$md" >> "$GITHUB_OUTPUT"
+
+    - name: Comment on the pull request
+      if: always() && inputs.comment == 'true' && github.event_name == 'pull_request' && steps.check.outputs.markdown != ''
+      shell: bash
+      # Fork PRs get a read-only token: a failed comment must not fail the gate.
+      continue-on-error: true
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        REPO: ${{ github.repository }}
+        PR: ${{ github.event.pull_request.number }}
+        MD: ${{ steps.check.outputs.markdown }}
+      run: |
+        set -euo pipefail
+        [ -f "$MD" ] || exit 0
+        marker='<!-- agent-lint-report -->'
+        id="$(gh api "repos/$REPO/issues/$PR/comments" --paginate \
+          --jq ".[] | select(.body | startswith(\"$marker\")) | .id" | tail -n 1)"
+        if [ -n "$id" ]; then
+          gh api -X PATCH "repos/$REPO/issues/comments/$id" -F body=@"$MD" > /dev/null
+        else
+          gh api -X POST "repos/$REPO/issues/$PR/comments" -F body=@"$MD" > /dev/null
+        fi
+
+    - name: Upload SARIF to code scanning
+      if: always() && inputs.upload-sarif == 'true' && hashFiles(inputs.sarif) != ''
+      uses: github/codeql-action/upload-sarif@v4
+      with:
+        sarif_file: ${{ inputs.sarif }}
+        category: agent-lint
+
+    - name: Gate
+      shell: bash
+      env:
+        CODE: ${{ steps.check.outputs.exit-code }}
+      run: exit "${CODE:-2}"

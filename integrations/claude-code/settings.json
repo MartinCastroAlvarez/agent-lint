@@ -1,0 +1,33 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "agent-lint",
+            "args": [
+              "hook"
+            ],
+            "timeout": 120
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "agent-lint",
+            "args": [
+              "hook"
+            ],
+            "timeout": 900
+          }
+        ]
+      }
+    ]
+  }
+}

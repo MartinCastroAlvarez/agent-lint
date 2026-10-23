@@ -1,0 +1,31 @@
+# .agent-lint/config.toml (or [tool.agent-lint] in pyproject.toml)
+
+# Linters to run. Listed tools are REQUIRED: a missing one fails the gate.
+# Leave it out to auto-detect every installed runner that has files to check.
+tools = ["ruff", "mypy", "eslint"]
+
+# What the guards compare against. Overridden by --base and $AGENT_LINT_BASE.
+base = "origin/main"
+
+# Paths whose findings and suppressions are ignored (gitignore-style globs).
+exclude = ["migrations/**", "src/generated/**"]
+
+# Extra test locations, on top of test_*.py, *_test.py, tests/, *.test.*, *.spec.* ...
+tests = ["checks/**"]
+
+# Reviewed suppressions that are fine to add (substring of the comment).
+allow = ["type: ignore[import-untyped]"]
+
+# Guard codes to switch off. AL302 and AL401 can never be switched off.
+disable = []
+
+# Per-tool time limit in seconds, and the runners used by the per-edit hook.
+timeout = 600
+hook_tools = ["ruff", "eslint"]
+
+[mypy]
+args = ["src"]
+
+[eslint]
+args = ["--max-warnings", "0"]
+executable = "node_modules/.bin/eslint"

@@ -1,0 +1,109 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint (ruff + mypy + bandit + shellcheck)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install Poetry
+        run: pipx install poetry
+      - name: Install dependencies
+        run: poetry install --no-interaction
+      - name: ruff check
+        run: poetry run ruff check agent_lint tests
+      - name: ruff format --check
+        run: poetry run ruff format --check agent_lint tests
+      - name: mypy
+        run: poetry run mypy agent_lint
+      - name: bandit
+        run: poetry run bandit -c pyproject.toml -q -r agent_lint
+      - name: shellcheck examples
+        run: shellcheck examples/*.sh
+
+  audit:
+    name: pip-audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install Poetry
+        run: pipx install poetry
+      - name: Install dependencies
+        run: poetry install --no-interaction --no-root
+      - name: pip-audit
+        run: |
+          # Upgrade pip first so its own advisories don't fail the audit -
+          # pip is tooling, not a shipped dependency.
+          poetry run python -m pip install --upgrade -q pip
+          poetry run pip-audit
+
+  test:
+    name: Tests (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install Poetry
+        run: pipx install poetry
+      - name: Install dependencies
+        run: poetry install --no-interaction
+      - name: Run pytest
+        run: poetry run pytest -q
+      - name: Run the cheating demo
+        run: poetry run bash examples/demo.sh
+
+  dogfood:
+    name: agent-lint on itself (composite action)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install Poetry
+        run: pipx install poetry
+      - name: Install dependencies (the linters agent-lint will run)
+        run: |
+          poetry install --no-interaction
+          echo "$(poetry env info --path)/bin" >> "$GITHUB_PATH"
+      - name: agent-lint
+        uses: ./
+        with:
+          sarif: agent-lint.sarif
+      - name: Keep the SARIF
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: agent-lint-sarif
+          path: agent-lint.sarif
+          if-no-files-found: ignore
