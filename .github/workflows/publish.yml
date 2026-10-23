@@ -197,3 +197,11 @@ jobs:
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          body_path: ${{ steps.changelog.outputs.body_file }}
+          prerelease: ${{ steps.changelog.outputs.prerelease == 'true' }}
+          files: |
+            dist/*.whl
+            dist/*.tar.gz
